@@ -51,6 +51,7 @@ namespace WebSocketsServer
             var obj = JsonConvert.DeserializeObject<Message>(message);
             var session = _clients[obj.sender];
 
+            _logger.LogInformation($"Message received from {obj.sender}[{received.MessageType}]: {obj.message}");
             switch (received.MessageType)
             {
                 case WebSocketMessageType.Close:
@@ -85,7 +86,12 @@ namespace WebSocketsServer
             // Manter lista com todos os jogadores conectados
             var playerId = _clients.Add(socket);
 
+            _logger.LogInformation($"Connected: {playerId}");
 
+            //await _clients.Caller(
+            //    new Message { operation = "Connected", sender = playerId },
+            //    playerId);
+            
             //TODO: Implementar OnConnected
 
 
