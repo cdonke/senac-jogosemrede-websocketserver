@@ -24,7 +24,7 @@ namespace WebSocketsServer
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddSingleton<WebSocketConnectionManager>();
-            services.AddTransient(typeof(CardGameHandler), typeof(WebSocketHandler));
+            services.AddTransient( typeof(WebSocketHandler),typeof(CardGameHandler));
             services.AddLogging();
         }
 
