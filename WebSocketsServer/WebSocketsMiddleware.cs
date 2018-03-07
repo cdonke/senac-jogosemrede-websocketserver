@@ -14,91 +14,48 @@ namespace WebSocketsServer
     {
         private readonly RequestDelegate _next;
         private readonly ILogger<WebSocketsMiddleware> _logger;
-        private readonly Clients _clients;                                                 
+        private readonly WebSocketHandler _webSocketHandler;
 
-
-        public WebSocketsMiddleware(RequestDelegate next, ILogger<WebSocketsMiddleware> logger, Clients clients)
+        public WebSocketsMiddleware(RequestDelegate next, ILogger<WebSocketsMiddleware> logger, WebSocketHandler webSocketHandler)
         {
-            _clients = clients;
+            _webSocketHandler = webSocketHandler;
             _next = next;
             _logger = logger;
         }
 
-        public async Task Invoke(HttpContext httpContext){
+        public async Task Invoke(HttpContext httpContext)
+        {
             if (!httpContext.WebSockets.IsWebSocketRequest)
                 return;
 
             var webSocket = await httpContext.WebSockets.AcceptWebSocketAsync();
-            await OnConnected(webSocket);
+            await _webSocketHandler.OnConnected(webSocket);
 
-
-            await OnReceive(webSocket);
-        }
-
-        public async Task OnReceive(WebSocket socket){
-            while(socket.State == WebSocketState.Open){
-                var token = CancellationToken.None;
-                var buffer = new ArraySegment<byte>(new byte[4096]);
-
-                var received = await socket.ReceiveAsync(buffer, token);
-                var message = Encoding.UTF8.GetString(buffer.Array, 0, received.Count);
-
-                await MessageHandler(received, message);
-            }
-        }
-
-        public async Task MessageHandler(WebSocketReceiveResult received, string message){
-            var obj = JsonConvert.DeserializeObject<Message>(message);
-            var session = _clients[obj.sender];
-
-            _logger.LogInformation($"Message received from {obj.sender}[{received.MessageType}]: {obj.message}");
-            switch (received.MessageType)
+            await OnReceive(webSocket, async (result, buffer) =>
             {
-                case WebSocketMessageType.Close:
-                    try
-                    {
-                        await _clients.Disconnect(obj.sender);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex.ToString());
-                    }
-                    break;
+                switch (result.MessageType)
+                {
+                    case WebSocketMessageType.Close:
+                        await _webSocketHandler.OnDisconnect(webSocket);
+                        break;
 
-                case WebSocketMessageType.Text:
-                    try
-                    {
-                        //TODO: Implementar acoes
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex.ToString());
-                    }
-                    break;
+                    case WebSocketMessageType.Text:
+                        await _webSocketHandler.ReceiveAsync(webSocket, result, buffer);
+                        break;
+                }
+            });
+        }
 
-                default:
-                    _logger.LogError("Unknown message");
-                    break;
+        public async Task OnReceive(WebSocket socket, Action<WebSocketReceiveResult, byte[]> handleMessage)
+        {
+            var buffer = new byte[4096];
+            var token = CancellationToken.None;
+
+            while (socket.State == WebSocketState.Open)
+            {
+                var result = await socket.ReceiveAsync(buffer, token);
+                handleMessage(result, buffer);
             }
         }
-
-        public async Task OnConnected(WebSocket socket){
-            // Manter lista com todos os jogadores conectados
-            var playerId = _clients.Add(socket);
-
-            _logger.LogInformation($"Connected: {playerId}");
-
-            //await _clients.Caller(
-            //    new Message { operation = "Connected", sender = playerId },
-            //    playerId);
-            
-            //TODO: Implementar OnConnected
-
-
-
-
-            await Task.FromResult<object>(null);
-        }
-
     }
 }
