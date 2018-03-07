@@ -37,15 +37,18 @@ namespace WebSocketsServer
 
         public async Task SendToAll(Message message)
         {
+            _logger.LogInformation($"Enviando mensagem de {message.sender} para todos");
             await SendMessageAsync(message, WebSocketConnectionManager.All().ToArray());
         }
         public async Task SendToOthers(Message message)
         {
+            _logger.LogInformation($"Enviando mensagem de {message.sender} para outros");
             var others = WebSocketConnectionManager.Others(message.sender).ToArray();
             await SendMessageAsync(message, others);
         }
         public async Task SendToCaller(Message message)
         {
+            _logger.LogInformation($"Enviando mensagem de {message.sender} para caller");
             var caller = WebSocketConnectionManager[message.sender];
             await SendMessageAsync(message, caller);
         }
@@ -61,6 +64,7 @@ namespace WebSocketsServer
                 if (socket.State != WebSocketState.Open)
                     continue;
 
+                _logger.LogInformation($"Enviando mensagem: Operation:{message.operation ?? ""}, Mensagem: {message.message ?? ""}");
                 await socket.SendAsync(buffer, WebSocketMessageType.Text, true, CancellationToken.None);
             }
         }

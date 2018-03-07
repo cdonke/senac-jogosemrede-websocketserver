@@ -35,7 +35,8 @@ namespace WebSocketsServer
         public override async Task<string> OnDisconnect(WebSocket socket)
         {
             var id = await base.OnDisconnect(socket);
-            
+            _logger.LogInformation($"Disconnected: {id}");
+
             var msg = new Message
             {
                 sender = id,
@@ -57,6 +58,7 @@ namespace WebSocketsServer
             _logger.LogInformation($"{result.MessageType} message received from {obj.sender}: {obj.message}");
 
             //TODO: Implementar acoes
+            await SendToOthers(obj);
         }
     }
 }
